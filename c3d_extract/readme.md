@@ -1,4 +1,5 @@
 ### git clone https://github.com/katsura-jp/extruct-video-feature
+### Change main.py to https://github.com/puhuk/tools/blob/main/c3d_extract/main.py
 
 ### Model
 - C3D
