@@ -27,7 +27,7 @@ overlap frame is 8 frame(16*0.5), so start frame are 1,9, 17, 25,... Default : `
 ### Usage
 1. download weight.
 
-2. 
+2. Use following command
 ```
 python3 main.py --root_dir <video path> --frame_unit <unit> --overlap <Overlap> --gpu_id <GPU ID> --pretrained_path <path of c3d.pickle>
 ```
