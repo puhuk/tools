@@ -104,3 +104,9 @@ def test_msemae_gloo_cpu_or_gpu():
 
     device = idist.device()
     _test_non_distrib(device)
+    
+    
+backend = "gloo"
+device = idist.device()
+with idist.Parallel(backend=backend) as parallel:
+    parallel.run(_test_distrib_again, device)
