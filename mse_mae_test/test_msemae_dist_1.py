@@ -20,14 +20,15 @@ def pprint(rank, msg):
 
 def _test_distrib_again1(local_rank, device):
     rank = idist.get_rank()
-    # torch.manual_seed(12)
+    
+    # make random seed different with each rank of process
+    torch.manual_seed(10 + rank)
 
     y_pred, y = (torch.randint(0, 10, size=(10,)), torch.randint(0, 10, size=(10,)))
     y_pred = y_pred.to(device)
     y = y.to(device)
     
     msemae = Msemae()
-    torch.manual_seed(10 + rank)
 
     pprint(rank, f"Hello from process {rank} : {y_pred}, {y}")
 
