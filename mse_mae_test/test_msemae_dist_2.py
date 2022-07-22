@@ -17,13 +17,15 @@ def pprint(rank, msg):
     time.sleep(0.5 * rank)
     print(rank, msg)
 
-def _test_distrib_again2(local_rank, y_pred_list, y_list):
+def _test_distrib_again2(local_rank, device):
     rank = idist.get_rank()
-    # torch.manual_seed(12)
     device = idist.device()
     torch.manual_seed(12)
 
-    y_pred, y = y_pred_list[rank*10:(rank+1)*10], y_list[rank*10:(rank+1)*10]
+    # Generate length of random integer list with process(4) * length of list(10)
+    y_pred, y = (torch.randint(0, 10, size=(40,)), torch.randint(0, 10, size=(40,)))
+    # User partial list of y_pred and y as input of each process
+    y_pred, y = y_pred[rank*10:(rank+1)*10], y[rank*10:(rank+1)*10]
     y_pred = y_pred.to(device)
     y = y.to(device)
     
