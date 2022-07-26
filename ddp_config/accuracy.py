@@ -17,6 +17,7 @@ class Accuracy():
 
     def compute(self):
         # collect each processes' num_correct and num_examples 
+        
         dist.all_reduce(torch.Tensor(self._num_correct))    # all processes have same value of num_correct
         dist.all_reduce(torch.Tensor(self._num_examples))   # all processes have same value of num_example
 
