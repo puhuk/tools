@@ -11,9 +11,13 @@ from accuracy import Accuracy
 import torch.distributed as dist
 
 
-def _test_distrib_accuracy(self):
-    rank = dist.get_rank()
+def _test_distrib_accuracy(local_rank):
+    rank = 0
+
     torch.manual_seed(12)
+
+    if torch.distributed.is_initialized():
+        rank = dist.get_rank()
 
     y_pred_all, y_true_all = (
         torch.randint(0, 10, size=(40,)),
@@ -34,16 +38,19 @@ def _test_distrib_accuracy(self):
     )  # compute the accuracy from sum of correct items and whole items of all processes
     res2 = acc.compute()
 
-    print(res, res2)
-
-    assert accuracy_score(y_pred_all, y_true_all) == pytest.approx(
-        res[0] / res[1]
+    assert accuracy_score(y_true_all, y_pred_all) == pytest.approx(
+        res
     )  # check with reference value
-    assert res != res2
+    assert res == res2
 
 
 if __name__ == "__main__":
     backend = "gloo"
     device = idist.device()
-    with idist.Parallel(backend=backend, nproc_per_node=4) as parallel:
+    # with idist.Parallel(backend=None) as parallel:
+    #     parallel.run(_test_distrib_accuracy)
+
+    with idist.Parallel(
+        backend=backend, nproc_per_node=4, init_method="file:///c:/tmp/sharedfile"
+    ) as parallel:
         parallel.run(_test_distrib_accuracy)
