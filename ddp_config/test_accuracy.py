@@ -13,20 +13,22 @@ import torch.distributed as dist
 
 def _test_distrib_accuracy(local_rank):
     rank = 0
+    ws = 1
 
     torch.manual_seed(12)
 
     if torch.distributed.is_initialized():
         rank = dist.get_rank()
+        ws = dist.get_world_size()
 
     y_pred_all, y_true_all = (
-        torch.randint(0, 10, size=(40,)),
-        torch.randint(0, 10, size=(40,)),
+        torch.randint(0, 10, size=(10 * ws,)),
+        torch.randint(0, 10, size=(10 * ws,)),
     )  # 4 x 10 items for all y_pred and all y_true
     y_pred, y_true = (
         y_pred_all[rank * 10 : (rank + 1) * 10],
         y_true_all[rank * 10 : (rank + 1) * 10],
-    )  # seperate all y_pred and all y_true to y_pred and y_tre
+    )  # seperate all y_pred and all y_true to y_pred and y_true
 
     acc = Accuracy()  # initialize the Accuracy class
     acc.reset()  # reset acc
