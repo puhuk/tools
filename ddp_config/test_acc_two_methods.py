@@ -62,7 +62,9 @@ def _test_distrib_accuracy_1(local_rank):
     assert acc1_num_correct == acc2_num_correct
     assert acc1_num_examples == acc2_num_examples
 
-def _test_distrib_accuracy_2(local_rank): ### Do differently from 1st (in terms of generating data)
+def _test_distrib_accuracy_2(
+    local_rank,
+):
     rank = 0
     ws = 1
 
@@ -74,55 +76,33 @@ def _test_distrib_accuracy_2(local_rank): ### Do differently from 1st (in terms 
         ws = dist.get_world_size()
 
     batch_size = 10
-    y_pred_all, y_true_all = [torch.Tensor(np.array(batch_size*n)) for i in range(ws)], [torch.Tensor(np.array(batch_size*n)) for i in range(ws)]
-
-    # shape_tensor = torch.Tensor(np.array(10)).cuda()
-    # all_shape = [torch.Tensor(np.array(10)).cuda() for i in range(ws)]
+    y_pred_all, y_true_all = [
+        torch.Tensor(np.array(batch_size * n)) for i in range(ws)
+    ], [torch.Tensor(np.array(batch_size * n)) for i in range(ws)]
 
     acc = Accuracy()  # initialize the Accuracy class
     acc.reset()  # reset acc
 
     # count the number of correct items and whole items from each process
     y_pred_rank, y_true_rank = [], []
-    print("Heell")
     for i in range(n):
-        # print("Heell", i)
         torch.manual_seed(12 + rank + i)
         y_pred = torch.randint(0, batch_size, size=(batch_size,))
-        y_true = torch.randint(0, batch_size, size=(batch_size,))   # boundary
+        y_true = torch.randint(0, batch_size, size=(batch_size,))  # boundary
         y_pred_rank.extend(y_pred.tolist())
         y_true_rank.extend(y_true.tolist())
-        print(rank, "y_pred_rank222222222", y_pred_rank, y_pred.tolist())
-        # pprint(rank, f"all =  {y_pred}, {y_true}")
         acc.update(y_pred, y_true)
 
-    # pprint(rank, f"all2 =  {y_pred_rank}, {y_true_rank}, {y_pred_all}, {y_true_all}")
-    print(rank, "y_pred_rank", y_pred_rank)
     tmp_rank = torch.tensor(y_pred_rank, dtype=torch.float32)
     tmp_true = torch.tensor(y_true_rank, dtype=torch.float32)
 
-    # print("DIFF", torch.tensor(y_pred_rank, dtype=torch.int32), torch.Tensor(y_pred_rank))
     dist.all_gather(y_pred_all, tmp_rank)
     dist.all_gather(y_true_all, tmp_true)
-    # pprint(rank, f"all3 =  {y_pred_rank}, {y_true_rank}, {y_pred_all}, {y_true_all}")
-    print(rank, "y_pred_all", y_pred_all)
 
-    a = []
-    for item in y_pred_all:
-        for it in item:
-            a.append(it.item())
+    y_pred_all = [it.item() for item in y_pred_all for it in item]
+    y_true_all = [it.item() for item in y_true_all for it in item]
 
-    print("AAA", a)
-
-    y_pred_all = [[i.item() for i in y_pred_all[k]] for k in range(n)]
-    y_true_all = [[i.item() for i in y_true_all[k]] for k in range(n)]
-    print(rank, "aaaaaaaaa", y_pred_all)
-    
-
-    # compute the accuracy from sum of correct items and whole items of all processes
     res = acc.compute()
-
-    print("RESSSSSS", accuracy_score(y_true_all, y_pred_all), res)
 
     acc1_num_correct, acc1_num_examples = acc._num_correct, acc._num_examples
     res2 = acc.compute()
@@ -134,7 +114,7 @@ def _test_distrib_accuracy_2(local_rank): ### Do differently from 1st (in terms 
 
     # check with reference value
     assert accuracy_score(y_true_all, y_pred_all) == pytest.approx(res)
-    
+
     assert res == res2
     assert acc1_num_correct == acc2_num_correct
     assert acc1_num_examples == acc2_num_examples
