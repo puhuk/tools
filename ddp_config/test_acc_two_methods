@@ -1,0 +1,156 @@
+import os
+import pytest
+import torch
+
+import ignite.distributed as idist
+from sklearn.metrics import accuracy_score
+import time
+import numpy as np
+import random
+from accuracy import Accuracy
+import torch.distributed as dist
+
+def pprint(rank, msg):
+    # We add sleep to avoid printing clutter
+    time.sleep(0.5 * rank)
+    print(rank, msg)
+
+def _test_distrib_accuracy_1(local_rank):
+    rank = 0
+    ws = 1
+
+    n = 3
+    batch_size = 10
+
+    torch.manual_seed(12)
+
+    if torch.distributed.is_initialized():
+        rank = dist.get_rank()
+        ws = dist.get_world_size()
+
+    batch_size = 10
+    y_pred_all, y_true_all = (
+        torch.randint(0, batch_size, size=(batch_size * ws * n,)),
+        torch.randint(0, batch_size, size=(batch_size * ws * n,)),
+    )  # 4 x 10 items for all y_pred and all y_true
+
+    acc = Accuracy()  # initialize the Accuracy class
+    acc.reset()  # reset acc
+
+    # count the number of correct items and whole items from each process
+    for i in range(n):
+        y_pred = y_pred_all[(i + rank*n) * batch_size : (i + rank*n+1) * batch_size]
+        y_true = y_true_all[(i + rank*n) * batch_size : (i + rank*n+1) * batch_size]   # boundary
+        acc.update(y_pred, y_true)
+    
+
+    # compute the accuracy from sum of correct items and whole items of all processes
+    res = acc.compute()
+
+    acc1_num_correct, acc1_num_examples = acc._num_correct, acc._num_examples
+    res2 = acc.compute()
+    acc2_num_correct, acc2_num_examples = acc._num_correct, acc._num_examples
+
+    acc.reset()  # reset acc
+    assert acc._num_correct == 0
+    assert acc._num_examples == 0
+
+    # check with reference value
+    assert accuracy_score(y_true_all, y_pred_all) == pytest.approx(res)
+    
+    assert res == res2
+    assert acc1_num_correct == acc2_num_correct
+    assert acc1_num_examples == acc2_num_examples
+
+def _test_distrib_accuracy_2(local_rank): ### Do differently from 1st (in terms of generating data)
+    rank = 0
+    ws = 1
+
+    n = 3
+    batch_size = 10
+
+    if torch.distributed.is_initialized():
+        rank = dist.get_rank()
+        ws = dist.get_world_size()
+
+    batch_size = 10
+    y_pred_all, y_true_all = [torch.Tensor(np.array(batch_size*n)) for i in range(ws)], [torch.Tensor(np.array(batch_size*n)) for i in range(ws)]
+
+    # shape_tensor = torch.Tensor(np.array(10)).cuda()
+    # all_shape = [torch.Tensor(np.array(10)).cuda() for i in range(ws)]
+
+    acc = Accuracy()  # initialize the Accuracy class
+    acc.reset()  # reset acc
+
+    # count the number of correct items and whole items from each process
+    y_pred_rank, y_true_rank = [], []
+    print("Heell")
+    for i in range(n):
+        # print("Heell", i)
+        torch.manual_seed(12 + rank + i)
+        y_pred = torch.randint(0, batch_size, size=(batch_size,))
+        y_true = torch.randint(0, batch_size, size=(batch_size,))   # boundary
+        y_pred_rank.extend(y_pred.tolist())
+        y_true_rank.extend(y_true.tolist())
+        print(rank, "y_pred_rank222222222", y_pred_rank, y_pred.tolist())
+        # pprint(rank, f"all =  {y_pred}, {y_true}")
+        acc.update(y_pred, y_true)
+
+    # pprint(rank, f"all2 =  {y_pred_rank}, {y_true_rank}, {y_pred_all}, {y_true_all}")
+    print(rank, "y_pred_rank", y_pred_rank)
+    tmp_rank = torch.tensor(y_pred_rank, dtype=torch.float32)
+    tmp_true = torch.tensor(y_true_rank, dtype=torch.float32)
+
+    # print("DIFF", torch.tensor(y_pred_rank, dtype=torch.int32), torch.Tensor(y_pred_rank))
+    dist.all_gather(y_pred_all, tmp_rank)
+    dist.all_gather(y_true_all, tmp_true)
+    # pprint(rank, f"all3 =  {y_pred_rank}, {y_true_rank}, {y_pred_all}, {y_true_all}")
+    print(rank, "y_pred_all", y_pred_all)
+
+    a = []
+    for item in y_pred_all:
+        for it in item:
+            a.append(it.item())
+
+    print("AAA", a)
+
+    y_pred_all = [[i.item() for i in y_pred_all[k]] for k in range(n)]
+    y_true_all = [[i.item() for i in y_true_all[k]] for k in range(n)]
+    print(rank, "aaaaaaaaa", y_pred_all)
+    
+
+    # compute the accuracy from sum of correct items and whole items of all processes
+    res = acc.compute()
+
+    print("RESSSSSS", accuracy_score(y_true_all, y_pred_all), res)
+
+    acc1_num_correct, acc1_num_examples = acc._num_correct, acc._num_examples
+    res2 = acc.compute()
+    acc2_num_correct, acc2_num_examples = acc._num_correct, acc._num_examples
+
+    acc.reset()  # reset acc
+    assert acc._num_correct == 0
+    assert acc._num_examples == 0
+
+    # check with reference value
+    assert accuracy_score(y_true_all, y_pred_all) == pytest.approx(res)
+    
+    assert res == res2
+    assert acc1_num_correct == acc2_num_correct
+    assert acc1_num_examples == acc2_num_examples
+
+if __name__ == "__main__":
+    backend = "gloo"
+    device = idist.device()
+    # with idist.Parallel(backend=None) as parallel:
+    #     parallel.run(_test_distrib_accuracy_1)
+
+    # with idist.Parallel(
+    #     backend=backend, nproc_per_node=4, init_method="file:///c:/tmp/sharedfile"
+    # ) as parallel:
+    #     parallel.run(_test_distrib_accuracy_1)
+
+    with idist.Parallel(
+        backend=backend, nproc_per_node=4
+    ) as parallel:
+        parallel.run(_test_distrib_accuracy_2)
