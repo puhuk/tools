@@ -10,12 +10,7 @@ import random
 from accuracy import Accuracy
 import torch.distributed as dist
 
-def pprint(rank, msg):
-    # We add sleep to avoid printing clutter
-    time.sleep(0.5 * rank)
-    print(rank, msg)
-
-def _test_distrib_accuracy_1(local_rank):
+def _test_distrib_accuracy_with_slicing_batch(local_rank):
     rank = 0
     ws = 1
 
@@ -32,17 +27,20 @@ def _test_distrib_accuracy_1(local_rank):
     y_pred_all, y_true_all = (
         torch.randint(0, batch_size, size=(batch_size * ws * n,)),
         torch.randint(0, batch_size, size=(batch_size * ws * n,)),
-    )  # 4 x 10 items for all y_pred and all y_true
+    )
 
     acc = Accuracy()  # initialize the Accuracy class
     acc.reset()  # reset acc
 
     # count the number of correct items and whole items from each process
     for i in range(n):
-        y_pred = y_pred_all[(i + rank*n) * batch_size : (i + rank*n+1) * batch_size]
-        y_true = y_true_all[(i + rank*n) * batch_size : (i + rank*n+1) * batch_size]   # boundary
+        y_pred = y_pred_all[
+            (i + rank * n) * batch_size : (i + rank * n + 1) * batch_size
+        ]
+        y_true = y_true_all[
+            (i + rank * n) * batch_size : (i + rank * n + 1) * batch_size
+        ]
         acc.update(y_pred, y_true)
-    
 
     # compute the accuracy from sum of correct items and whole items of all processes
     res = acc.compute()
@@ -57,14 +55,13 @@ def _test_distrib_accuracy_1(local_rank):
 
     # check with reference value
     assert accuracy_score(y_true_all, y_pred_all) == pytest.approx(res)
-    
+
     assert res == res2
     assert acc1_num_correct == acc2_num_correct
     assert acc1_num_examples == acc2_num_examples
 
-def _test_distrib_accuracy_2(
-    local_rank,
-):
+
+def _test_distrib_accuracy_with_different_rank(local_rank):
     rank = 0
     ws = 1
 
