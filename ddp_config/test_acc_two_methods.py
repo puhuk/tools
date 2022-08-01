@@ -61,7 +61,7 @@ def _test_distrib_accuracy_with_slicing_batch(local_rank):
     assert acc1_num_examples == acc2_num_examples
 
 
-def _test_distrib_accuracy_with_different_rank(local_rank):
+def _test_distrib_accuracy_with_different_seed_per_rank(local_rank):
     rank = 0
     ws = 1
 
@@ -130,4 +130,4 @@ if __name__ == "__main__":
     with idist.Parallel(
         backend=backend, nproc_per_node=4
     ) as parallel:
-        parallel.run(_test_distrib_accuracy_2)
+        parallel.run(_test_distrib_accuracy_with_different_seed_per_rank)
