@@ -1,3 +1,5 @@
+#python test_acc_two_methods.py
+
 import os
 import pytest
 import torch
