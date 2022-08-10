@@ -75,6 +75,9 @@ def _test_distrib_accuracy_with_different_seed_per_rank(local_rank):
         ws = dist.get_world_size()
 
     batch_size = 10
+    
+    # torch.Tensor should be changed to torch.tensor
+    # numpy should be eliminated
     y_pred_all, y_true_all = [
         torch.Tensor(np.array(batch_size * n)) for i in range(ws)
     ], [torch.Tensor(np.array(batch_size * n)) for i in range(ws)]
