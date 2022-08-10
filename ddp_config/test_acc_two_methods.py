@@ -82,22 +82,16 @@ def _test_distrib_accuracy_with_different_seed_per_rank(local_rank):
     acc = Accuracy()  # initialize the Accuracy class
     acc.reset()  # reset acc
 
-    # count the number of correct items and whole items from each process
-    y_pred_rank, y_true_rank = [], []
+    torch.manual_seed(12 + rank)
+    y_pred = torch.randint(0, batch_size, size=(batch_size * n,))
+    y_true = torch.randint(0, batch_size, size=(batch_size * n,))
     for i in range(n):
-        torch.manual_seed(12 + rank + i)
-        y_pred = torch.randint(0, batch_size, size=(batch_size,))
-        y_true = torch.randint(0, batch_size, size=(batch_size,))  # boundary
-        y_pred_rank.extend(y_pred.tolist())
-        y_true_rank.extend(y_true.tolist())
-        acc.update(y_pred, y_true)
+        acc.update(y_pred[i*batch_size : (i+1)*batch_size], y_true[i*batch_size : (i+1)*batch_size])
 
-    tmp_rank = torch.tensor(y_pred_rank, dtype=torch.float32)
-    tmp_true = torch.tensor(y_true_rank, dtype=torch.float32)
+    dist.all_gather(y_pred_all, torch.tensor(y_pred, dtype=torch.float32))
+    dist.all_gather(y_true_all, torch.tensor(y_true, dtype=torch.float32))
 
-    dist.all_gather(y_pred_all, tmp_rank)
-    dist.all_gather(y_true_all, tmp_true)
-
+    # .item() can not work in some scenarios
     y_pred_all = [it.item() for item in y_pred_all for it in item]
     y_true_all = [it.item() for item in y_true_all for it in item]
 
