@@ -22,6 +22,7 @@ def _test_distrib_integration_multilabel(device):
 
         engine = Engine(update)
 
+        # Seems error occurs
         y_true = idist.all_reduce(y_true)
         y_preds = idist.all_reduce(y_preds)
 
