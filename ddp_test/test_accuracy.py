@@ -262,8 +262,6 @@ def test_incorrect_type():
 def _test_distrib_multilabel_input_NHW(device):
     # Multilabel input data of shape (N, C, H, W, ...) and (N, C, H, W, ...)
 
-    rank = idist.get_rank()
-
     def _test(metric_device):
         metric_device = torch.device(metric_device)
         acc = Accuracy(is_multilabel=True, device=metric_device)
@@ -352,6 +350,7 @@ def _test_distrib_multilabel_input_NHW(device):
 
     # check multiple random inputs as random exact occurencies are rare
     for _ in range(3):
+        rank = idist.get_rank()
         _test("cpu")
         if device.type != "xla":
             _test(idist.device())
